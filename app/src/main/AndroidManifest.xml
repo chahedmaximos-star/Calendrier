@@ -40,9 +40,7 @@
             android:noHistory="false" />
 
         <!-- Background tap detector service -->
-        <service
-            android:name=".TapDetectorService"
-            android:exported="false" />
+    
 
     </application>
 

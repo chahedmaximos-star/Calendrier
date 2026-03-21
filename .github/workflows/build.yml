@@ -8,6 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -18,10 +19,15 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Gradle
+      - name: Install Gradle
         uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.2.1'
 
-      - name: Grant execute permission for gradlew
+      - name: Generate gradlew
+        run: gradle wrapper --gradle-version 8.2.1
+
+      - name: Grant execute permission
         run: chmod +x gradlew
 
       - name: Build Debug APK

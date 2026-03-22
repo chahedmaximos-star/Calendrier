@@ -179,15 +179,16 @@ class BrowserActivity : AppCompatActivity() {
     }
 
     fun hideApp() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-            am.appTasks.firstOrNull()?.setExcludeFromRecents(true)
-        }
-        startActivity(Intent(Intent.ACTION_MAIN).apply {
-            addCategory(Intent.CATEGORY_HOME)
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK
-        })
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+        val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        am.appTasks.firstOrNull()?.setExcludeFromRecents(true)
     }
+    startActivity(Intent(Intent.ACTION_MAIN).apply {
+        addCategory(Intent.CATEGORY_HOME)
+        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+    })
+    finish() //  
+}
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {

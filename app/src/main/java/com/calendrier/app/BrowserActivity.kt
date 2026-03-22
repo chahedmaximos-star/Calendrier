@@ -18,13 +18,9 @@ class BrowserActivity : AppCompatActivity() {
     private lateinit var webView: WebView
     private lateinit var etUrl: EditText
 
-    private val hideReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == "com.calendrier.HIDE_BROWSER") {
-                hideApp()
-            }
-        }
-    }
+    // Triple back press to hide
+    private var backPressCount = 0
+    private var lastBackPressTime = 0L
 
     companion object {
         const val DEFAULT_URL = "https://www.google.com"
@@ -38,7 +34,7 @@ class BrowserActivity : AppCompatActivity() {
 
         webView = findViewById(R.id.web_view)
         etUrl = findViewById(R.id.et_url)
-        val btnGo = findViewById<ImageButton>(R.id.btn_go)
+        val btnNewTab = findViewById<ImageButton>(R.id.btn_new_tab)
 
         webView.settings.apply {
             javaScriptEnabled = true
@@ -75,19 +71,19 @@ class BrowserActivity : AppCompatActivity() {
             .getString(PREF_LAST_URL, DEFAULT_URL) ?: DEFAULT_URL
         webView.loadUrl(lastUrl)
 
-        btnGo.setOnClickListener { navigate() }
+        // Enter key navigates
         etUrl.setOnKeyListener { _, keyCode, event ->
             if (keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_UP) {
                 navigate(); true
             } else false
         }
 
-        val filter = IntentFilter("com.calendrier.HIDE_BROWSER")
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(hideReceiver, filter, RECEIVER_NOT_EXPORTED)
-        } else {
-            @Suppress("UnspecifiedRegisterReceiverFlag")
-            registerReceiver(hideReceiver, filter)
+        // + button opens new page (Google)
+        btnNewTab.setOnClickListener {
+            etUrl.setText("")
+            webView.loadUrl(DEFAULT_URL)
+            getSharedPreferences("prefs", MODE_PRIVATE)
+                .edit().putString(PREF_LAST_URL, DEFAULT_URL).apply()
         }
     }
 
@@ -115,16 +111,23 @@ class BrowserActivity : AppCompatActivity() {
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
+        val now = System.currentTimeMillis()
+        if (now - lastBackPressTime < 800) backPressCount++
+        else backPressCount = 1
+        lastBackPressTime = now
+
+        // Triple back press = hide app
+        if (backPressCount >= 3) {
+            backPressCount = 0
+            hideApp()
+            return
+        }
+
         if (webView.canGoBack()) webView.goBack()
     }
 
     override fun onPause() {
         super.onPause()
         CookieManager.getInstance().flush()
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        unregisterReceiver(hideReceiver)
     }
 }

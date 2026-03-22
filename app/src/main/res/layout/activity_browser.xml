@@ -5,6 +5,23 @@
     android:orientation="vertical"
     android:background="#FFFFFF">
 
+    <!-- Tab Bar -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:background="#E8EAED"
+        android:scrollbars="none"
+        android:fillViewport="false">
+        <LinearLayout
+            android:id="@+id/tab_container"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp"/>
+    </HorizontalScrollView>
+
     <!-- Address Bar -->
     <LinearLayout
         android:layout_width="match_parent"
@@ -37,16 +54,15 @@
             android:layout_height="42dp"
             android:src="@android:drawable/ic_input_add"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="Nouvelle fenêtre"
+            android:contentDescription="Nouvel onglet"
             android:layout_marginStart="6dp" />
 
     </LinearLayout>
 
-    <!-- Split WebViews Container -->
-    <LinearLayout
+    <!-- WebViews stacked, only active one visible -->
+    <FrameLayout
         android:id="@+id/web_container"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="horizontal" />
+        android:layout_height="match_parent" />
 
 </LinearLayout>

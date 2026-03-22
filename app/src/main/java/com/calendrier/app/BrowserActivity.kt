@@ -5,7 +5,6 @@ import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
-import android.graphics.Typeface
 import android.os.Build
 import android.os.Bundle
 import android.view.KeyEvent
@@ -17,12 +16,10 @@ import androidx.appcompat.app.AppCompatActivity
 class BrowserActivity : AppCompatActivity() {
 
     private lateinit var etUrl: EditText
-    private lateinit var tabContainer: LinearLayout
-    private lateinit var webContainer: FrameLayout
+    private lateinit var webContainer: LinearLayout
 
     private val webViews = mutableListOf<WebView>()
-    private val tabUrls = mutableListOf<String>()
-    private var currentTab = 0
+    private var activeWebView: WebView? = null
 
     private var backPressCount = 0
     private var lastBackPressTime = 0L
@@ -30,6 +27,7 @@ class BrowserActivity : AppCompatActivity() {
     companion object {
         const val DEFAULT_URL = "https://www.google.com"
         const val PREF_LAST_URL = "last_url"
+        const val MAX_PANELS = 3
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -37,7 +35,6 @@ class BrowserActivity : AppCompatActivity() {
         setContentView(R.layout.activity_browser)
 
         etUrl = findViewById(R.id.et_url)
-        tabContainer = findViewById(R.id.tab_container)
         webContainer = findViewById(R.id.web_container)
         val btnNewTab = findViewById<ImageButton>(R.id.btn_new_tab)
 
@@ -48,17 +45,105 @@ class BrowserActivity : AppCompatActivity() {
         }
 
         btnNewTab.setOnClickListener {
-            addNewTab(DEFAULT_URL)
+            if (webViews.size < MAX_PANELS) {
+                addPanel(DEFAULT_URL)
+            } else {
+                Toast.makeText(this, "Maximum $MAX_PANELS fenêtres", Toast.LENGTH_SHORT).show()
+            }
         }
 
-        // Open first tab
         val lastUrl = getSharedPreferences("prefs", MODE_PRIVATE)
             .getString(PREF_LAST_URL, DEFAULT_URL) ?: DEFAULT_URL
-        addNewTab(lastUrl)
+        addPanel(lastUrl)
     }
 
     @SuppressLint("SetJavaScriptEnabled")
-    private fun createWebView(): WebView {
+    private fun addPanel(url: String) {
+        // Wrapper for each panel (WebView + close button)
+        val wrapper = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.WHITE)
+        }
+
+        val wv = createWebView(wrapper)
+        wv.loadUrl(url)
+
+        // Close button for this panel
+        val btnClose = TextView(this).apply {
+            text = "✕ Fermer"
+            textSize = 11f
+            setTextColor(Color.WHITE)
+            setBackgroundColor(Color.parseColor("#B71C1C"))
+            gravity = android.view.Gravity.CENTER
+            setPadding(0, 6, 0, 6)
+            visibility = if (webViews.size >= 1) View.VISIBLE else View.GONE
+            setOnClickListener {
+                removePanel(wrapper, wv)
+            }
+        }
+
+        wrapper.addView(btnClose, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+        ))
+        wrapper.addView(wv, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f
+        ))
+
+        // Divider between panels
+        if (webViews.isNotEmpty()) {
+            val divider = View(this).apply {
+                setBackgroundColor(Color.parseColor("#DADCE0"))
+            }
+            val divLp = LinearLayout.LayoutParams(2, LinearLayout.LayoutParams.MATCH_PARENT)
+            webContainer.addView(divider, divLp)
+        }
+
+        val lp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
+        webContainer.addView(wrapper, lp)
+
+        webViews.add(wv)
+        activeWebView = wv
+
+        // Refresh close buttons visibility
+        updateCloseButtons()
+    }
+
+    private fun removePanel(wrapper: LinearLayout, wv: WebView) {
+        val idx = webViews.indexOf(wv)
+        if (idx < 0) return
+
+        webViews.removeAt(idx)
+
+        // Remove divider before this panel if exists
+        val wrapperIdx = webContainer.indexOfChild(wrapper)
+        if (wrapperIdx > 0) {
+            webContainer.removeViewAt(wrapperIdx - 1) // divider
+        }
+        webContainer.removeView(wrapper)
+
+        if (webViews.isEmpty()) {
+            hideApp()
+        } else {
+            activeWebView = webViews.last()
+            updateCloseButtons()
+        }
+    }
+
+    private fun updateCloseButtons() {
+        // Show close button only when more than 1 panel
+        for (i in 0 until webContainer.childCount) {
+            val child = webContainer.getChildAt(i)
+            if (child is LinearLayout) {
+                val closeBtn = child.getChildAt(0)
+                if (closeBtn is TextView) {
+                    closeBtn.visibility = if (webViews.size > 1) View.VISIBLE else View.GONE
+                }
+            }
+        }
+    }
+
+    @SuppressLint("SetJavaScriptEnabled")
+    private fun createWebView(wrapper: LinearLayout): WebView {
         val wv = WebView(this)
         wv.settings.apply {
             javaScriptEnabled = true
@@ -80,122 +165,22 @@ class BrowserActivity : AppCompatActivity() {
         }
         wv.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
-                val idx = webViews.indexOf(view)
-                if (idx == currentTab) {
+                if (view == activeWebView) {
                     etUrl.setText(url)
                     getSharedPreferences("prefs", MODE_PRIVATE)
                         .edit().putString(PREF_LAST_URL, url).apply()
-                }
-                if (idx >= 0) {
-                    tabUrls[idx] = url ?: DEFAULT_URL
-                    updateTabBar()
                 }
             }
             override fun shouldOverrideUrlLoading(
                 view: WebView?, request: WebResourceRequest?
             ) = false
         }
+        wv.setOnTouchListener { v, _ ->
+            activeWebView = v as WebView
+            etUrl.setText(wv.url)
+            false
+        }
         return wv
-    }
-
-    private fun addNewTab(url: String) {
-        val wv = createWebView()
-        wv.loadUrl(url)
-
-        webViews.add(wv)
-        tabUrls.add(url)
-
-        val lp = FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.MATCH_PARENT,
-            FrameLayout.LayoutParams.MATCH_PARENT
-        )
-        webContainer.addView(wv, lp)
-
-        switchToTab(webViews.size - 1)
-        updateTabBar()
-    }
-
-    private fun switchToTab(index: Int) {
-        currentTab = index
-        for (i in webViews.indices) {
-            webViews[i].visibility = if (i == index) View.VISIBLE else View.GONE
-        }
-        etUrl.setText(tabUrls.getOrElse(index) { DEFAULT_URL })
-        updateTabBar()
-    }
-
-    private fun closeTab(index: Int) {
-        if (webViews.size == 1) {
-            // Last tab: go home
-            hideApp()
-            return
-        }
-        webContainer.removeView(webViews[index])
-        webViews.removeAt(index)
-        tabUrls.removeAt(index)
-
-        val newIndex = if (index >= webViews.size) webViews.size - 1 else index
-        switchToTab(newIndex)
-        updateTabBar()
-    }
-
-    private fun updateTabBar() {
-        tabContainer.removeAllViews()
-        for (i in webViews.indices) {
-            val tabView = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = android.view.Gravity.CENTER_VERTICAL
-                setPadding(12, 0, 8, 0)
-                background = if (i == currentTab) {
-                    val d = android.graphics.drawable.GradientDrawable()
-                    d.setColor(Color.WHITE)
-                    d.cornerRadius = 8f
-                    d
-                } else null
-            }
-
-            val tabLp = LinearLayout.LayoutParams(
-                resources.displayMetrics.widthPixels / 3,
-                LinearLayout.LayoutParams.MATCH_PARENT
-            ).apply { setMargins(2, 4, 2, 4) }
-
-            // Tab title
-            val tvTitle = TextView(this).apply {
-                text = getDomain(tabUrls.getOrElse(i) { "Nouvel onglet" })
-                textSize = 12f
-                maxLines = 1
-                ellipsize = android.text.TextUtils.TruncateAt.END
-                setTextColor(if (i == currentTab) Color.BLACK else Color.DKGRAY)
-                if (i == currentTab) setTypeface(null, Typeface.BOLD)
-                layoutParams = LinearLayout.LayoutParams(
-                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
-                )
-            }
-
-            // Close button
-            val btnClose = TextView(this).apply {
-                text = "✕"
-                textSize = 12f
-                setTextColor(Color.GRAY)
-                setPadding(8, 0, 0, 0)
-                setOnClickListener { closeTab(i) }
-            }
-
-            tabView.addView(tvTitle)
-            tabView.addView(btnClose)
-            tabView.setOnClickListener { switchToTab(i) }
-
-            tabContainer.addView(tabView, tabLp)
-        }
-    }
-
-    private fun getDomain(url: String): String {
-        return try {
-            val host = java.net.URL(url).host
-            host.removePrefix("www.")
-        } catch (e: Exception) {
-            "Nouvel onglet"
-        }
     }
 
     private fun navigate() {
@@ -205,7 +190,7 @@ class BrowserActivity : AppCompatActivity() {
             url = if (url.contains(".")) "https://$url"
             else "https://www.google.com/search?q=${url.replace(" ", "+")}"
         }
-        webViews.getOrNull(currentTab)?.loadUrl(url)
+        activeWebView?.loadUrl(url)
     }
 
     fun hideApp() {
@@ -213,11 +198,10 @@ class BrowserActivity : AppCompatActivity() {
             val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
             am.appTasks.firstOrNull()?.setExcludeFromRecents(true)
         }
-        val home = Intent(Intent.ACTION_MAIN).apply {
+        startActivity(Intent(Intent.ACTION_MAIN).apply {
             addCategory(Intent.CATEGORY_HOME)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
-        }
-        startActivity(home)
+        })
     }
 
     @Deprecated("Deprecated in Java")
@@ -233,8 +217,7 @@ class BrowserActivity : AppCompatActivity() {
             return
         }
 
-        val wv = webViews.getOrNull(currentTab)
-        if (wv?.canGoBack() == true) wv.goBack()
+        if (activeWebView?.canGoBack() == true) activeWebView?.goBack()
     }
 
     override fun onPause() {

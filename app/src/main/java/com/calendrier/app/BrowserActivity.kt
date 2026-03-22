@@ -51,3 +51,77 @@ class BrowserActivity : AppCompatActivity() {
         CookieManager.getInstance().apply {
             setAcceptCookie(true)
             setAcceptThirdPartyCookies(webView, true)
+        }
+
+        webView.webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView?, url: String?) {
+                etUrl.setText(url)
+                getSharedPreferences("prefs", MODE_PRIVATE)
+                    .edit().putString(PREF_LAST_URL, url).apply()
+            }
+            override fun shouldOverrideUrlLoading(
+                view: WebView?, request: WebResourceRequest?
+            ) = false
+        }
+
+        val lastUrl = getSharedPreferences("prefs", MODE_PRIVATE)
+            .getString(PREF_LAST_URL, DEFAULT_URL) ?: DEFAULT_URL
+        webView.loadUrl(lastUrl)
+
+        etUrl.setOnKeyListener { _, keyCode, event ->
+            if (keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_UP) {
+                navigate(); true
+            } else false
+        }
+
+        btnNewTab.setOnClickListener {
+            etUrl.setText("")
+            webView.loadUrl(DEFAULT_URL)
+            getSharedPreferences("prefs", MODE_PRIVATE)
+                .edit().putString(PREF_LAST_URL, DEFAULT_URL).apply()
+        }
+    }
+
+    private fun navigate() {
+        var url = etUrl.text.toString().trim()
+        if (url.isEmpty()) return
+        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+            url = if (url.contains(".")) "https://$url"
+            else "https://www.google.com/search?q=${url.replace(" ", "+")}"
+        }
+        webView.loadUrl(url)
+    }
+
+    fun hideApp() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            am.appTasks.firstOrNull()?.setExcludeFromRecents(true)
+        }
+        val home = Intent(Intent.ACTION_MAIN).apply {
+            addCategory(Intent.CATEGORY_HOME)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        startActivity(home)
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        val now = System.currentTimeMillis()
+        if (now - lastBackPressTime < 800) backPressCount++
+        else backPressCount = 1
+        lastBackPressTime = now
+
+        if (backPressCount >= 3) {
+            backPressCount = 0
+            hideApp()
+            return
+        }
+
+        if (webView.canGoBack()) webView.goBack()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        CookieManager.getInstance().flush()
+    }
+}

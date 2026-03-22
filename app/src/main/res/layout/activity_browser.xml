@@ -5,7 +5,6 @@
     android:orientation="vertical"
     android:background="#FFFFFF">
 
-    <!-- Address Bar -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="52dp"
@@ -32,23 +31,13 @@
             android:paddingEnd="8dp" />
 
         <ImageButton
-            android:id="@+id/btn_go"
-            android:layout_width="38dp"
-            android:layout_height="38dp"
-            android:src="@android:drawable/ic_menu_send"
+            android:id="@+id/btn_new_tab"
+            android:layout_width="42dp"
+            android:layout_height="42dp"
+            android:src="@android:drawable/ic_input_add"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="Go"
-            android:layout_marginStart="4dp" />
-
-        <!-- Hide button: small X top right -->
-        <ImageButton
-            android:id="@+id/btn_hide"
-            android:layout_width="38dp"
-            android:layout_height="38dp"
-            android:src="@android:drawable/ic_menu_close_clear_cancel"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="Masquer"
-            android:layout_marginStart="2dp" />
+            android:contentDescription="Nouvel onglet"
+            android:layout_marginStart="6dp" />
 
     </LinearLayout>
 

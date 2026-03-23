@@ -1,4 +1,4 @@
-package com.calculatrice.app  // أو com.calendrier.app
+package com.calendrier.app  // أو com.calendrier.app
 
 import android.annotation.SuppressLint
 import android.app.ActivityManager

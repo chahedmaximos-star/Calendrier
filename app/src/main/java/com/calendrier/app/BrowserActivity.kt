@@ -211,4 +211,5 @@ class BrowserActivity : AppCompatActivity() {
         super.onPause()
         CookieManager.getInstance().flush()
     }
+    webView.settings.apply { }
 }

@@ -1,4 +1,4 @@
-package com.calendrier.app
+package com.calculatrice.app  // أو com.calendrier.app
 
 import android.annotation.SuppressLint
 import android.app.ActivityManager
@@ -24,7 +24,6 @@ class BrowserActivity : AppCompatActivity() {
 
     private val tabs = mutableListOf<Tab>()
     private var currentTab = 0
-
     private var backPressCount = 0
     private var lastBackPressTime = 0L
 
@@ -48,9 +47,7 @@ class BrowserActivity : AppCompatActivity() {
             } else false
         }
 
-        btnNewTab.setOnClickListener {
-            openNewTab(DEFAULT_URL)
-        }
+        btnNewTab.setOnClickListener { openNewTab(DEFAULT_URL) }
 
         val lastUrl = getSharedPreferences("prefs", MODE_PRIVATE)
             .getString(PREF_LAST_URL, DEFAULT_URL) ?: DEFAULT_URL
@@ -72,6 +69,7 @@ class BrowserActivity : AppCompatActivity() {
             setSupportZoom(true)
             builtInZoomControls = true
             displayZoomControls = false
+            savePassword = true
             userAgentString = "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 Chrome/120.0 Mobile Safari/537.36"
         }
         CookieManager.getInstance().apply {
@@ -100,11 +98,10 @@ class BrowserActivity : AppCompatActivity() {
 
     private fun openNewTab(url: String) {
         val wv = createWebView()
-        val lp = FrameLayout.LayoutParams(
+        webContainer.addView(wv, FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT,
             FrameLayout.LayoutParams.MATCH_PARENT
-        )
-        webContainer.addView(wv, lp)
+        ))
         wv.loadUrl(url)
         tabs.add(Tab(wv, "Chargement...", url))
         switchToTab(tabs.size - 1)
@@ -123,22 +120,19 @@ class BrowserActivity : AppCompatActivity() {
         if (tabs.size == 1) { hideApp(); return }
         webContainer.removeView(tabs[index].webView)
         tabs.removeAt(index)
-        val newIndex = if (index >= tabs.size) tabs.size - 1 else index
-        switchToTab(newIndex)
+        switchToTab(if (index >= tabs.size) tabs.size - 1 else index)
     }
 
     private fun renderTabBar() {
         tabContainer.removeAllViews()
         tabs.forEachIndexed { i, tab ->
             val isActive = i == currentTab
-
             val tabView = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = android.view.Gravity.CENTER_VERTICAL
                 setPadding(16, 0, 8, 0)
                 setBackgroundColor(if (isActive) Color.WHITE else Color.TRANSPARENT)
             }
-
             val lp = LinearLayout.LayoutParams(
                 (resources.displayMetrics.widthPixels * 0.35).toInt(),
                 LinearLayout.LayoutParams.MATCH_PARENT
@@ -153,14 +147,12 @@ class BrowserActivity : AppCompatActivity() {
                 if (isActive) setTypeface(null, Typeface.BOLD)
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             }
-
             val btnClose = TextView(this).apply {
                 text = " ✕"
                 textSize = 13f
                 setTextColor(Color.GRAY)
                 setOnClickListener { closeTab(i) }
             }
-
             tabView.addView(tvTitle)
             tabView.addView(btnClose)
             tabView.setOnClickListener { switchToTab(i) }
@@ -178,31 +170,23 @@ class BrowserActivity : AppCompatActivity() {
         tabs.getOrNull(currentTab)?.webView?.loadUrl(url)
     }
 
-    fun hideApp() {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-        val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-        am.appTasks.firstOrNull()?.setExcludeFromRecents(true)
+    private fun hideApp() {
+        getSharedPreferences("prefs", MODE_PRIVATE)
+            .edit().putBoolean("browser_open", false).apply()
+        CookieManager.getInstance().flush()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            am.appTasks.firstOrNull()?.setExcludeFromRecents(true)
+        }
+        moveTaskToBack(true)
     }
-    startActivity(Intent(Intent.ACTION_MAIN).apply {
-        addCategory(Intent.CATEGORY_HOME)
-        flags = Intent.FLAG_ACTIVITY_NEW_TASK
-    })
-    finish() //  
-}
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         val now = System.currentTimeMillis()
-        if (now - lastBackPressTime < 800) backPressCount++
-        else backPressCount = 1
+        if (now - lastBackPressTime < 800) backPressCount++ else backPressCount = 1
         lastBackPressTime = now
-
-        if (backPressCount >= 3) {
-            backPressCount = 0
-            hideApp()
-            return
-        }
-
+        if (backPressCount >= 3) { backPressCount = 0; hideApp(); return }
         val wv = tabs.getOrNull(currentTab)?.webView
         if (wv?.canGoBack() == true) wv.goBack()
     }
@@ -211,5 +195,4 @@ class BrowserActivity : AppCompatActivity() {
         super.onPause()
         CookieManager.getInstance().flush()
     }
-    webView.settings.apply { }
 }
